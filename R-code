@@ -1,0 +1,472 @@
+---
+title: 'CUNY-SPS-DATA621: Business Analytics and Data Mining Homework #4: Multiple
+  Linear and Binary Logistic Regression'
+output:
+  html_document:
+    df_print: paged
+  github_document: default
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+<style type="text/css">
+.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#```{r set-options, echo=FALSE, cache=FALSE}
+#options(width = 12)
+#```
+
+
+```{r load-packages, results='hide',warning=FALSE, message=FALSE, echo=FALSE}
+
+#library(tidyverse) #loading all library needed for this assignment
+#remove.packages(tidyverse)
+#library(openintro)
+#library(lahman) #database for baseball
+library(caret)
+library(knitr)
+#library(markdown)
+#library(rmarkdown)
+library(dplyr)
+library(tidyr)
+library(naniar)
+library(reshape)
+library(ggplot2)
+library(qqplotr)
+library(stats)
+library(statsr)
+library(GGally)
+library(pdftools)
+library(correlation)
+library(Metrics)
+#library(e1071)
+library(rocc)
+library(corrgram)
+library(readr)
+library(ROCR)
+library(pROC)
+library(plm)
+library(car)
+library(VIF)
+library(MASS)
+library(AICcmodavg)
+library(gridExtra)
+library(ggpubr)
+library(reshape2)
+library(rJava)
+library(glmulti)
+
+
+
+```
+
+
+Github Master files: https://github.com/asmozo24/Data621_HW5_Count_Regression
+
+
+
+
+Overview
+
+In this homework assignment, we will explore, analyze and model a data set containing information on
+approximately 12,000 commercially available wines.The variables are mostly related to the chemical properties of
+the wine being sold. The response variable is the number of sample cases of wine that were purchased by wine
+distribution companies after sampling a wine. These cases would be used to provide tasting samples to
+restaurants and wine stores around the United States. The more sample cases purchased, the more likely is a
+wine to be sold at a high end restaurant.
+
+A large wine manufacturer is studying the data in order to predict the
+number of wine cases ordered based upon the wine characteristics. If the wine manufacturer can predict the
+number of cases, then that manufacturer will be able to adjust their wine offering to maximize sales.
+
+Our objective is to build a count regression model to predict the number of cases of wine that will be sold
+given certain properties of the wine. HINT: Sometimes, the fact that a variable is missing is actually predictive of
+the target.
+
+
+
+
+
+
+
+## 1. Data Exploration
+
+There are 02 datasets: wine-training-data and insurance-evaluation-data provided by Instructor:Nasrin Khansari. These are csv files and we used R-programming language to acquire the 02 datasets pre-stored in Github repository. These 24 variables of interest are all predictors except the variables called "TARGET_FLAG","TARGET_AMT" which are the response variable, and are already defined within the dataset package(see below). The case study: to predict the probability that a person will crash their car and also the amount of money it will cost if the person does crash their car. 
+
+Below is a short description of the variables of interest in the data set:
+
+
+```{r, echo=FALSE}
+
+variable_names <- read.csv("https://raw.githubusercontent.com/asmozo24/Data621_HW5_Count_Regression/main/Wine_variables_name.csv", stringsAsFactors=FALSE)
+variable_names%>%
+      head(20)%>%
+      kable()
+
+```   
+
+
+
+#### Data Structure
+ 
+These datasets include 12795  observations and 16 variables. The variables are all numerical data type. There are variables (predictors) that might need to change data type if we will use them to build the different models.
+
+
+```{r, echo=FALSE}
+
+wineT_df <- read.csv("https://raw.githubusercontent.com/asmozo24/Data621_HW5_Count_Regression/main/wine-training-data.csv", stringsAsFactors=FALSE)
+wineE_df <- read.csv("https://raw.githubusercontent.com/asmozo24/Data621_HW5_Count_Regression/main/wine-evaluation-data.csv", stringsAsFactors=FALSE)
+
+wineT_df %>%
+      head(6)%>%
+      kable()
+View(wineT_df)
+
+str(wineT_df)
+#glimpse(insuranceT_df)
+#dim(insuranceT_df) 
+
+#view(training_df)
+
+```
+
+Summary of wine-training-data
+```{r my-chunk, R.options = list(width = 10)}
+#library(gtsummary)
+#library(kableExtra)
+#summary (wineT_df)
+
+library(pastecs)
+#stat.desc(wineT_df)
+
+options(scipen=10)
+options(digits=2)
+#stat.desc(wineT_df, basic=T,desc=T, norm=FALSE, p=0.95)
+# select (data =wineT_df, TARGET, FixedAcidity, VolatileAcidity, CitricAcid, ResidualSugar, Chlorides, FreeSulfurDioxide)
+s1 <- dplyr::select (wineT_df, TARGET, FixedAcidity, VolatileAcidity, CitricAcid, ResidualSugar, Chlorides, FreeSulfurDioxide)
+s2 <- dplyr::select(wineT_df, TotalSulfurDioxide, Density, pH, Sulphates, Alcohol, LabelAppeal, AcidIndex, STARS)
+stat.desc( s2, norm=FALSE, p=0.95) #basic=T,desc=F
+
+#wineT_df0 <- as_tibble(wineT_df)
+ #print(stat.desc(wineT_df))
+#View(stat.desc(wineT_df))
+# code only group for summary by grouping
+
+# # install.packages("devtools")
+# devtools::install_github("AlineTalhouk/Amisc")
+# 
+# library(Amisc)
+# library(pander)
+# pander::pandoc.table(Amisc::describeBy(
+#   data = wineT_df,
+#   var.names = "ï..INDEX",
+#   by1 = c("ï..INDEX", "TARGET", "FixedAcidity", "VolatileAcidity", "CitricAcid", "ResidualSugar", "Chlorides", "FreeSulfurDioxide", "TotalSulfurDioxide", "Density", "pH", "Sulphates", "Alcohol", "LabelAppeal", "AcidIndex", "STARS"),
+#   dispersion = "sd", Missing = TRUE,
+#   stats = "non-parametric"
+# ),
+# split.tables = Inf
+# )
+
+wineT_df1 <- wineT_df %>%
+  dplyr::select(-ï..INDEX)
+
+
+
+
+
+```
+### Data dristribution Bar plots
+```{r my-chunk2, R.options = list(width = 10)}
+
+# ggplot(wineT_df1) +
+#   aes(x ="FixedAcidity", y = TARGET) +
+#   geom_boxplot(fill = "#0c4c8a") +
+#     #coord_flip() +
+#   theme_minimal()
+
+
+
+# Boxplot from dataframe
+ggplot(data = stack(wineT_df1), aes(x = ind, y = values)) +
+       stat_boxplot(geom = "errorbar", # Boxplot with error bars
+                    width = 0.2) +
+       geom_boxplot(fill = "#4271AE", colour = "#1F3552", # Colors
+                    alpha = 0.9, outlier.colour = "red") +
+       scale_y_continuous(name = "Weight") +  # Continuous variable label
+       scale_x_discrete(name = "Variables") +      # Group label
+       #ggtitle("Boxplot of Wine Training Data") + # Plot title
+       coord_flip() + #flip to vertical
+       theme(axis.line = element_line(colour = "black", # Theme customization
+                                      size = 0.25))
+```
+
+### Correlation
+```{r}
+
+#install.packages("PerformanceAnalytics")
+#library("PerformanceAnalytics")
+#chart.Correlation(wineT_df1, histogram=TRUE, pch=19)
+cor1 <- sapply(wineT_df1, cor, y=wineT_df1)  
+library(data.table)
+corMatrix <- cor(wineT_df1)
+setDT(melt(corMatrix))[order(value)]
+
+library(corrr)
+# matrix(wineT_df1) %>%
+#     correlate() %>% 
+#     #stretch() %>% 
+#     arrange(r)
+
+ggcorr(wineT_df1, label = TRUE , label_alpha =TRUE )
+
+                  
+```
+
+
+
+###Data Cleaning-Fixing variable with missing Values
+
+Let's see the distribution of the missing values across the training dataset.
+
+```{r, echo=FALSE}
+
+misValues1 <- sum(is.na(wineT_df1))# Returning the column names with missing values
+#column_na1 <- colnames(insuranceT_df1)[ apply(insuranceT_df1, 2, anyNA) ] # 2 is dimension(dim())
+
+cat("The total of missing values is : ", misValues1)
+cat("\nVariable distribution of missing 'NA' is: ")
+#column_na1
+
+missing.values <- function(df){
+    df %>%
+    gather(key = "variables", value = "val") %>%
+    mutate(is.missing = is.na(val)) %>%
+    group_by(variables, is.missing) %>%
+    summarise(number.missing = n()) %>%
+    filter(is.missing==T) %>%
+    dplyr::select(-is.missing) %>%
+    arrange(desc(number.missing)) 
+}
+
+missing.values(wineT_df1)%>% kable()
+#missing.values(evaluation_df) %>% kable()
+
+
+
+gg_miss_var(wineT_df1, show_pct = TRUE) + labs(y = "Missing Values in % to total record")+ theme_update()
+
+
+```
+
+
+### Dealing with missing values
+
+```{r}
+#install.packages("mice")
+#install.packages("devtools")
+#devtools::install_github(repo = "amices/mice")
+# multiple impute the missing values
+library(mice, warn.conflicts = FALSE)
+impT <- mice(wineT_df1, m=1,maxit=1, seed = 3231)
+#summary(impT$imp)
+#is.na(impT$imp$STARS)
+# inspect quality of imputations
+stripplot(impT  ,Chlorides, pch = 19,xlab = "Imputation number")
+
+wineT_df2 <- wineT_df1
+library(Hmisc)
+# impute missing value by median
+ wineT_df2$STARS <- impute( wineT_df2$STARS , median)
+ wineT_df2$Sulphates <- impute( wineT_df2$Sulphates , median)
+ wineT_df2$TotalSulfurDioxide <- impute( wineT_df2$TotalSulfurDioxide , median)
+ wineT_df2$Alcohol <- impute( wineT_df2$Alcohol , median)
+ wineT_df2$FreeSulfurDioxide <- impute( wineT_df2$FreeSulfurDioxide , median)
+ wineT_df2$Chlorides <- impute( wineT_df2$Chlorides , median)
+ wineT_df2$ResidualSugar <- impute( wineT_df2$ResidualSugar , median)
+ wineT_df2$pH <- impute( wineT_df2$pH, median)
+missing.values(wineT_df2)%>% kable()
+gg_miss_var(wineT_df2, show_pct = TRUE) + labs(y = "Missing Values in % to total record after Imputation")+ theme_update()
+
+#checking correlation again
+
+ggcorr(wineT_df2, label = TRUE , label_alpha =TRUE )
+
+#checking variable distribution
+library(ggthemes)
+wineT_df2 %>%
+  gather() %>%                             
+  ggplot(aes(value)) +                     
+    facet_wrap(~ key, scales = "free") +  
+    geom_histogram(bins = 25) +
+  theme_wsj()+ scale_colour_wsj("colors6")
+
+```
+
+3. Build Model
+
+Multiple Linear Regression Model, model 1
+
+```{r}
+lm1 <- lm(TARGET ~., data = wineT_df2)
+summary(lm1)
+plot(lm1)
+
+```
+
+
+Multiple Linear Regression Model, model 2
+
+```{r}
+
+wineT_df3 <- wineT_df2 %>%
+  dplyr::select(-FixedAcidity, -ResidualSugar )
+
+lm2 <- lm(TARGET ~., data = wineT_df3)
+summary(lm2)
+
+plot(lm2)
+
+
+```
+
+
+Poisson Regression Model, Model 3
+
+assumes the response variable Y has a Poisson distribution, and assumes the logarithm of its expected value can be modeled by a linear combination of unknown parameters. A Poisson regression model is sometimes known as a log-linear model, especially when used to model contingency tables
+
+```{r}
+
+glm_1 <- glm(TARGET ~., data=wineT_df2, family=poisson(link = "log"))
+summary(glm_1)
+View(wineT_df2)
+hist(wineT_df2$TARGET)
+sum(is.na(wineT_df2))
+
+```
+
+
+Model 4- poisson regression model (checking missing values)
+```{r}
+sum(is.na(wineT_df2))
+
+glm_2 <- glm(TARGET ~., data=wineT_df2, family=poisson(link = "log"))
+summary(glm_2)
+
+```
+
+
+Model 5- poisson regression model (02 independent variables removed)
+
+```{r}
+
+glm_3 <- glm(TARGET ~., data=wineT_df3, family=poisson(link = "log"))
+summary(glm_3)
+
+```
+
+
+
+Negative Binomial Model-Model 6
+
+```{r}
+
+glm_4 <- glm.nb(TARGET ~ ., data = wineT_df2)
+summary(glm_4)
+
+
+```
+
+Negative Binomial Model-Model 7
+
+
+```{r}
+
+glm_5 <- glm.nb(TARGET ~ ., data = wineT_df3)
+summary(glm_5)
+
+```
+
+
+Glmulti package
+
+```{r}
+glmulti.lm.out <-
+    glmulti(imputed$TARGET ~., data = imputed,
+            level = 1,               # No interaction considered
+            method = "h",            # Exhaustive approach
+            crit = "aic",            # AIC as criteria
+            confsetsize = 03,        # only 03 best models
+            plotty = T, report = F,  # Show plot and no interim reports
+            fitfunction = "lm")      # Use lm function, glm can be used as well.
+
+glmulti.lm.out@formulas
+
+
+```
+
+
+4. Select Model
+
+```{r}
+
+misValues1 <- sum(is.na(wineE_df))# Returning the column names with missing values
+#column_na1 <- colnames(insuranceT_df1)[ apply(insuranceT_df1, 2, anyNA) ] # 2 is dimension(dim())
+
+cat("The total of missing values is : ", misValues1)
+cat("\nVariable distribution of missing 'NA' is: ")
+glimpse(wineE_df)
+wineE_df1 <- wineE_df %>%
+  dplyr::select(-IN)
+
+missing.values(wineE_df1)%>% kable()
+
+wineE_df2 <- wineE_df1
+# impute missing value by median
+ wineE_df2$STARS <- impute( wineE_df2$STARS , median)
+ wineE_df2$Sulphates <- impute( wineE_df2$Sulphates , median)
+ wineE_df2$TotalSulfurDioxide <- impute( wineE_df2$TotalSulfurDioxide , median)
+ wineE_df2$Alcohol <- impute( wineE_df2$Alcohol , median)
+ wineE_df2$FreeSulfurDioxide <- impute( wineE_df2$FreeSulfurDioxide , median)
+ wineE_df2$Chlorides <- impute( wineE_df2$Chlorides , median)
+ wineE_df2$ResidualSugar <- impute( wineE_df2$ResidualSugar , median)
+ wineE_df2$pH <- impute( wineE_df2$pH, median)
+missing.values(wineE_df2)%>% kable()
+gg_miss_var(wineE_df2, show_pct = TRUE) + labs(y = "Missing Values in % to total record after Imputation on wine Evaluation data")+ theme_update()
+
+
+# model validation on RMSE
+model.evaluation <- function(model, test){
+  pred_M <- predict(model, test)
+  difference <- as.numeric(pred_M) - as.numeric(test$TARGET)
+  RME <- mean((difference)^2)
+  return(RME)
+}
+
+model.evaluation(lm1, as.data.frame(wineT_df2))
+model.evaluation(lm2,  as.data.frame(wineT_df2))
+model.evaluation(glm_1,  as.data.frame(wineT_df2))
+model.evaluation(glm_2,  as.data.frame(wineT_df2))
+model.evaluation(glm_3,  as.data.frame(wineT_df2))
+model.evaluation(glm_4,  as.data.frame(wineT_df2))
+model.evaluation(glm_5,  as.data.frame(wineT_df2))
+
+
+```
+
+
+
+
+
+
+
+
+
